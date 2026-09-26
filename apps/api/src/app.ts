@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Server } from 'socket.io';
 import { config } from './config.js';
+import { isDatabaseConnected } from './db.js';
 import { errorHandler, notFound } from './middleware/errors.js';
 import { analyticsRouter } from './routes/analytics.js';
 import { authRouter } from './routes/auth.js';
@@ -49,13 +50,28 @@ export function createApp(io: Server) {
   app.use(morgan(config.nodeEnv === 'production' ? 'combined' : 'dev'));
 
   app.get('/api/health', (_request, response) => {
-    response.json({ status: 'ok', service: 'routeflow-api', timestamp: new Date().toISOString() });
+    response.json({
+      status: 'ok',
+      service: 'routeflow-api',
+      database: isDatabaseConnected() ? 'connected' : 'disconnected',
+      timestamp: new Date().toISOString(),
+    });
   });
 
-  app.use('/api/auth', authRouter);
-  app.use('/api/orders', ordersRouter);
-  app.use('/api/users', usersRouter);
-  app.use('/api/analytics', analyticsRouter);
+  const checkDb: express.RequestHandler = (_req, res, next) => {
+    if (!isDatabaseConnected()) {
+      return res.status(503).json({
+        message: 'Database is connecting or MONGODB_URI is not set in Render environment variables. Please check Render logs.',
+      });
+    }
+    next();
+  };
+
+  app.use('/api/auth', checkDb, authRouter);
+  app.use('/api/orders', checkDb, ordersRouter);
+  app.use('/api/users', checkDb, usersRouter);
+  app.use('/api/analytics', checkDb, analyticsRouter);
+
 
   // In production / unified deployment, serve compiled frontend if available
   if (fs.existsSync(webDistPath)) {

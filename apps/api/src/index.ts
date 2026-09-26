@@ -13,8 +13,7 @@ const httpServer = createServer(app);
 io.attach(httpServer);
 configureRealtime(io);
 
-async function start() {
-  await connectDatabase();
+async function checkAutoSeed() {
   try {
     const { User } = await import('./models/User.js');
     const userCount = await User.countDocuments();
@@ -26,11 +25,28 @@ async function start() {
   } catch (err) {
     console.warn('Auto-seed check skipped or encountered error:', err);
   }
+}
 
+async function start() {
   httpServer.listen(config.port, () => {
     console.log(`RouteFlow API listening on port ${config.port}`);
   });
+
+  const connected = await connectDatabase();
+  if (connected) {
+    await checkAutoSeed();
+  } else {
+    const timer = setInterval(async () => {
+      console.log('Retrying MongoDB connection...');
+      const ok = await connectDatabase();
+      if (ok) {
+        clearInterval(timer);
+        await checkAutoSeed();
+      }
+    }, 10000);
+  }
 }
+
 
 
 async function shutdown(signal: string) {
