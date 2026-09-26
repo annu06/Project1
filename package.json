@@ -1,0 +1,21 @@
+{
+  "name": "routeflow-delivery-platform",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n API,WEB -c red,cyan \"npm run dev -w @routeflow/api\" \"npm run dev -w @routeflow/web\"",
+    "build": "npm run build -w @routeflow/api && npm run build -w @routeflow/web",
+    "typecheck": "npm run typecheck -w @routeflow/api && npm run typecheck -w @routeflow/web",
+    "seed": "npm run seed -w @routeflow/api",
+    "start": "npm run start -w @routeflow/api"
+  },
+  "devDependencies": {
+    "concurrently": "9.1.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
