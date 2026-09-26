@@ -6,7 +6,7 @@ import { connectDatabase, disconnectDatabase } from './db.js';
 import { configureRealtime } from './realtime.js';
 
 const io = new Server({
-  cors: { origin: config.clientUrl, credentials: true },
+  cors: { origin: (origin, callback) => callback(null, true), credentials: true },
 });
 const app = createApp(io);
 const httpServer = createServer(app);
@@ -15,10 +15,23 @@ configureRealtime(io);
 
 async function start() {
   await connectDatabase();
+  try {
+    const { User } = await import('./models/User.js');
+    const userCount = await User.countDocuments();
+    if (userCount === 0) {
+      console.log('Fresh database detected. Auto-seeding demo accounts...');
+      const { seedDemoData } = await import('./seed.js');
+      await seedDemoData();
+    }
+  } catch (err) {
+    console.warn('Auto-seed check skipped or encountered error:', err);
+  }
+
   httpServer.listen(config.port, () => {
-    console.log(`RouteFlow API listening on http://localhost:${config.port}`);
+    console.log(`RouteFlow API listening on port ${config.port}`);
   });
 }
+
 
 async function shutdown(signal: string) {
   console.log(`${signal} received, shutting down`);

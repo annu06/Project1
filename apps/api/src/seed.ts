@@ -6,8 +6,8 @@ import { User } from './models/User.js';
 const demoEmails = ['customer@routeflow.dev', 'agent@routeflow.dev', 'agent2@routeflow.dev', 'admin@routeflow.dev'];
 const hoursFromNow = (hours: number) => new Date(Date.now() + hours * 3_600_000);
 
-async function seed() {
-  await connectDatabase();
+export async function seedDemoData() {
+
   await Order.deleteMany({});
   await User.deleteMany({ email: { $in: demoEmails } });
   const passwordHash = await bcrypt.hash('Password123!', 12);
@@ -80,4 +80,15 @@ async function seed() {
   console.table(demoEmails.map((email) => ({ email, password: 'Password123!' })));
 }
 
-seed().catch((error) => { console.error(error); process.exitCode = 1; }).finally(disconnectDatabase);
+async function runStandalone() {
+  await connectDatabase();
+  await seedDemoData();
+  await disconnectDatabase();
+}
+
+if (process.argv[1]?.replace(/\\/g, '/').endsWith('seed.ts') || process.argv[1]?.replace(/\\/g, '/').endsWith('seed.js')) {
+  runStandalone().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}
